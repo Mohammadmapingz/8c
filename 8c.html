@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Klasseadministrasjon 8C – Nannestad Ungdomsskole</title>
+<style>
+  :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;--bg:#0f1111;--card:#141617;--accent:#2f7a2f;}
+  body{background:var(--bg);color:#eee;margin:0;padding:18px;}
+  header{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+  header img{width:140px;border-radius:6px;border:2px solid #222;object-fit:cover;height:90px}
+  h1{margin:0;font-size:20px}
+  .small{color:#bfc3c3;font-size:14px}
+  .layout{display:flex;gap:16px}
+  .left,.right{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.6)}
+  .left{width:360px}
+  .right{flex:1;min-width:720px}
+  .teacher{background:#1b1d1d;padding:10px;border-radius:8px;margin-bottom:8px}
+  .teacher b{display:block}
+  .teacher .room{font-size:13px;color:#cfcfcf;margin-top:4px}
+  .students-table{width:100%;border-collapse:collapse;margin-top:8px}
+  .students-table th, .students-table td{padding:8px;border-bottom:1px solid #222;text-align:left;font-size:14px}
+  .students-table th{background:#111; color:#dff0d8}
+  .student-row{cursor:pointer}
+  .btn{display:inline-block;padding:8px 10px;border-radius:6px;background:var(--accent);color:#fff;text-decoration:none;border:none;cursor:pointer}
+  .small-muted{font-size:13px;color:#b7b7b7}
+  .grid{display:grid;grid-template-columns:120px repeat(5,1fr);gap:8px}
+  .grid .header{background:#162a16;padding:10px;border-radius:6px;font-weight:700}
+  .cell{background:#111;padding:8px;border-radius:6px;min-height:72px;color:#fff;position:relative;cursor:pointer}
+  .cell .subject{font-weight:700}
+  .cell .meta{font-size:12px;color:#cfcfcf;margin-top:6px}
+  .time-slot{padding:6px;background:#0a4a0a;border-radius:6px;font-size:13px}
+  .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .panel{background:#0f0f10;padding:16px;border-radius:8px;min-width:320px;max-width:760px}
+  label{display:block;margin-top:8px;font-size:13px;color:#cfcfcf}
+  input[type="text"], select, textarea, input[type="date"]{width:100%;padding:8px;margin-top:6px;border-radius:6px;background:#141414;border:1px solid #222;color:#fff}
+  textarea{min-height:80px}
+  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .danger{background:#a33}
+  .hidden{display:none}
+  .note-pill{display:inline-block;padding:4px 8px;border-radius:12px;background:#254b25;color:#dfffdc;margin-right:6px;font-weight:700}
+  .note-pill.bad{background:#5b2626;color:#ffdcdc}
+  .profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:980px){.layout{flex-direction:column}.left{width:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="/mnt/data/D53A1766-1258-42B9-AC84-6EA760134D0A.jpeg" alt="Opplastet bilde" />
+  <div>
+    <h1>Klasseadministrasjon 8C – Nannestad Ungdomsskole</h1>
+    <div class="small">Logget som: <strong>Mohammad Arkan Osman</strong></div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- VENSTRE: elever + lærere -->
+  <div class="left">
+    <h3>Kontaktliste — Elever (15)</h3>
+    <table class="students-table" id="studentsTable">
+      <thead>
+        <tr><th>Elev</th><th>Adresse</th><th>Født</th></tr>
+      </thead>
+      <tbody id="studentsTbody"></tbody>
+    </table>
+
+    <h3 style="margin-top:12px">Lærere</h3>
+    <div class="teacher-list" id="teacherList">
+      <!-- Lærere fylles av JS -->
+    </div>
+  </div>
+
+  <!-- HØYRE: timeplan og detaljer -->
+  <div class="right">
+    <h3>Timeplan (mandag–fredag)</h3>
+    <div class="small-muted">Klikk en celle for å redigere fag, lærer eller rom.</div>
+    <div style="height:14px"></div>
+
+    <div class="grid" id="timetableGrid">
+      <!-- Grid-headers -->
+      <div class="header">Tid</div>
+      <div class="header">Mandag</div>
+      <div class="header">Tirsdag</div>
+      <div class="header">Onsdag</div>
+      <div class="header">Torsdag</div>
+      <div class="header">Fredag</div>
+
+      <!-- Perioder. Tider kan justeres etter behov. -->
+    </div>
+
+    <div style="height:14px"></div>
+
+    <button class="btn" id="exportBtn">Eksporter data (JSON)</button>
+  </div>
+</div>
+
+<!-- MODAL: Elevprofil -->
+<div class="modal" id="studentModal">
+  <div class="panel">
+    <h3 id="modalName">Elev</h3>
+    <div class="profile-grid">
+      <div>
+        <div class="small-muted">Adresse</div>
+        <div id="modalAddress"></div>
+
+        <div style="height:8px"></div>
+        <div class="small-muted">Foreldre / telefon</div>
+        <div id="modalParents"></div>
+
+        <div style="height:8px"></div>
+        <div class="small-muted">Fødselsdato</div>
+        <div id="modalDOB"></div>
+
+        <div style="height:8px"></div>
+        <div class="small-muted">Vurdering</div>
+        <div id="modalVurdering" style="white-space:pre-wrap"></div>
+      </div>
+
+      <div>
+        <div class="small-muted">Anmerkninger</div>
+        <div id="notesList"></div>
+
+        <label for="noteType">Type</label>
+        <select id="noteType">
+          <option value="Orden">Orden</option>
+          <option value="Oppførsel">Oppførsel</option>
+        </select>
+
+        <label for="noteComment">Kommentar</label>
+        <textarea id="noteComment" placeholder="Skriv kommentar..."></textarea>
+
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn" id="addNoteBtn">Legg til anmerkning</button>
+          <button class="btn" id="editVurderingBtn">Rediger vurdering</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn danger" id="closeStudentModal">Lukk</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rediger vurdering -->
+<div class="modal" id="vurderingModal">
+  <div class="panel">
+    <h3>Rediger vurdering</h3>
+    <label for="vurderingText">Skriv vurdering (vises i elevprofil)</label>
+    <textarea id="vurderingText"></textarea>
+    <div class="actions">
+      <button class="btn" id="saveVurderingBtn">Lagre</button>
+      <button class="btn danger" id="closeVurderingBtn">Avbryt</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rediger timeplancelle -->
+<div class="modal" id="cellModal">
+  <div class="panel">
+    <h3>Rediger time</h3>
+    <label for="cellSubject">Fag</label>
+    <input type="text" id="cellSubject" placeholder="F.eks. Matematikk" />
+    <label for="cellTeacher">Lærer</label>
+    <select id="cellTeacher"></select>
+    <label for="cellRoom">Rom</label>
+    <input type="text" id="cellRoom" placeholder="Rom 3" />
+    <div class="actions">
+      <button class="btn" id="saveCellBtn">Lagre</button>
+      <button class="btn danger" id="closeCellBtn">Lukk</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Data: lærere, elever, timeplan ---------- */
+
+const TEACHERS = [
+  {name:"Mohammad Arkan Osman", subjects:["Kontaktlærer","Naturfag","Matematikk","Engelsk"], room:"Rom 3"},
+  {name:"Leon Johansen", subjects:["Norsk","KRLE"], room:"Rom 3"},
+  {name:"Jenny Berntsen", subjects:["Kroppsøving"], room:"Rom 3"},
+  {name:"Monica Sand", subjects:["Samfunnsfag"], room:"Rom 3"}
+];
+
+// 15 elever med adresser i Nannestad, foreldre og telefonnummer, født 2015
+const STUDENTS = [
+  {id:1, name:"Amina Solberg", address:"Storgata 12, 2030 Nannestad", parents:[{name:"Karin Solberg", phone:"+47 412 34 001"},{name:"Ola Solberg", phone:"+47 412 34 002"}], dob:"2015-02-18", notes:[], vurdering:""},
+  {id:2, name:"Emil Hansen", address:"Fossvegen 3, 2030 Nannestad", parents:[{name:"Marta Hansen", phone:"+47 412 34 011"},{name:"Per Hansen", phone:"+47 412 34 012"}], dob:"2015-05-22", notes:[], vurdering:""},
+  {id:3, name:"Ida Nilsen", address:"Bråtevegen 8, 2030 Nannestad", parents:[{name:"Anna Nilsen", phone:"+47 412 34 021"},{name:"Eirik Nilsen", phone:"+47 412 34 022"}], dob:"2015-08-03", notes:[], vurdering:""},
+  {id:4, name:"Sander Vik", address:"Liavegen 4, 2030 Nannestad", parents:[{name:"Inger Vik", phone:"+47 412 34 031"},{name:"Kristian Vik", phone:"+47 412 34 032"}], dob:"2015-01-09", notes:[], vurdering:""},
+  {id:5, name:"Maya Kristoffersen", address:"Granlivegen 21, 2030 Nannestad", parents:[{name:"Lena Kristoffersen", phone:"+47 412 34 041"},{name:"Thomas Kristoffersen", phone:"+47 412 34 042"}], dob:"2015-12-14", notes:[], vurdering:""},
+  {id:6, name:"Lucas Berg", address:"Hovengata 2, 2030 Nannestad", parents:[{name:"Grete Berg", phone:"+47 412 34 051"},{name:"Jon Berg", phone:"+47 412 34 052"}], dob:"2015-06-30", notes:[], vurdering:""},
+  {id:7, name:"Sofia Olsen", address:"Nygata 17, 2030 Nannestad", parents:[{name:"Hanna Olsen", phone:"+47 412 34 061"},{name:"Anders Olsen", phone:"+47 412 34 062"}], dob:"2015-03-04", notes:[], vurdering:""},
+  {id:8, name:"Noah Pedersen", address:"Torvgata 6, 2030 Nannestad", parents:[{name:"Silje Pedersen", phone:"+47 412 34 071"},{name:"Morten Pedersen", phone:"+47 412 34 072"}], dob:"2015-11-10", notes:[], vurdering:""},
+  {id:9, name:"Thea Rasmussen", address:"Vestrevegen 9, 2030 Nannestad", parents:[{name:"Kari Rasmussen", phone:"+47 412 34 081"},{name:"Henrik Rasmussen", phone:"+47 412 34 082"}], dob:"2015-07-19", notes:[], vurdering:""},
+  {id:10, name:"Oskar Strand", address:"Bakkevegen 5, 2030 Nannestad", parents:[{name:"Liv Strand", phone:"+47 412 34 091"},{name:"Arne Strand", phone:"+47 412 34 092"}], dob:"2015-09-25", notes:[], vurdering:""},
+  {id:11, name:"Nora Lunde", address:"Skogvegen 11, 2030 Nannestad", parents:[{name:"Elisabeth Lunde", phone:"+47 412 34 101"},{name:"Rune Lunde", phone:"+47 412 34 102"}], dob:"2015-04-16", notes:[], vurdering:""},
+  {id:12, name:"Mikkel Eng", address:"Vestlivegen 2, 2030 Nannestad", parents:[{name:"Sigrid Eng", phone:"+47 412 34 111"},{name:"Håkon Eng", phone:"+47 412 34 112"}], dob:"2015-10-02", notes:[], vurdering:""},
+  {id:13, name:"Ella Sæther", address:"Hovedgata 30, 2030 Nannestad", parents:[{name:"Ragnhild Sæther", phone:"+47 412 34 121"},{name:"Fredrik Sæther", phone:"+47 412 34 122"}], dob:"2015-02-05", notes:[], vurdering:""},
+  {id:14, name:"Isak Moen", address:"Nordlivegen 7, 2030 Nannestad", parents:[{name:"Marit Moen", phone:"+47 412 34 131"},{name:"Vegard Moen", phone:"+47 412 34 132"}], dob:"2015-08-28", notes:[], vurdering:""},
+  {id:15, name:"Hanna Bergli", address:"Søndregt 1, 2030 Nannestad", parents:[{name:"Tove Bergli", phone:"+47 412 34 141"},{name:"Stian Bergli", phone:"+47 412 34 142"}], dob:"2015-06-06", notes:[], vurdering:""}
+];
+
+// Default timetable template: 6 periods per day (you can change)
+const PERIODS = [
+  {label:"08:30 - 09:15"},
+  {label:"09:20 - 10:05"},
+  {label:"10:20 - 11:00"},
+  {label:"11:30 - 12:15"},
+  {label:"12:20 - 13:05"},
+  {label:"13:10 - 13:55"}
+];
+
+// Build initial empty timetable (mon-fri x periods)
+const defaultTimetable = {};
+["Mandag","Tirsdag","Onsdag","Torsdag","Fredag"].forEach(day=>{
+  defaultTimetable[day] = PERIODS.map((p,i)=>({
+    subject: i===0 && day==="Mandag" ? "Norsk" : "", // example starter
+    teacher: i===0 && day==="Mandag" ? "Leon Johansen" : "",
+    room: i===0 && day==="Mandag" ? "Rom 3" : "Rom 3"
+  }));
+});
+
+// Try load saved data from localStorage
+function loadState(){
+  const s = localStorage.getItem("klasseState_v1");
+  if(s){ 
+    try { 
+      const parsed = JSON.parse(s);
+      if(parsed.students) { 
+        // merge to keep IDs
+        parsed.students.forEach(ps => {
+          const st = STUDENTS.find(x=>x.id===ps.id);
+          if(st){
+            st.notes = ps.notes || [];
+            st.vurdering = ps.vurdering || "";
+          }
+        });
+      }
+      if(parsed.timetable) timetable = parsed.timetable;
+      else timetable = defaultTimetable;
+    } catch(e){
+      timetable = defaultTimetable;
+    }
+  } else {
+    timetable = defaultTimetable;
+  }
+}
+let timetable = {};
+loadState();
+
+/* ---------- UI rendering ---------- */
+
+const studentsTbody = document.getElementById("studentsTbody");
+const teacherListDiv = document.getElementById("teacherList");
+const timetableGrid = document.getElementById("timetableGrid");
+
+function renderStudents(){
+  studentsTbody.innerHTML = "";
+  STUDENTS.forEach(s=>{
+    const tr = document.createElement("tr");
+    tr.className = "student-row";
+    tr.dataset.id = s.id;
+    tr.innerHTML = `<td><strong>${s.name}</strong></td>
+                    <td>${s.address}</td>
+                    <td>${s.dob}</td>`;
+    tr.addEventListener("click", ()=>openStudentModal(s.id));
+    studentsTbody.appendChild(tr);
+  });
+}
+
+function renderTeachers(){
+  teacherListDiv.innerHTML = "";
+  TEACHERS.forEach(t=>{
+    const d = document.createElement("div");
+    d.className = "teacher";
+    d.innerHTML = `<b>${t.name}</b><div class="small-muted">${t.subjects.join(", ")}</div><div class="room">${t.room}</div>`;
+    teacherListDiv.appendChild(d);
+  });
+}
+
+function renderTimetable(){
+  // remove existing period rows (keep headers)
+  // We'll append period rows: for each period, first cell is time, then 5 cells
+  // Clear existing period cells if any
+  // Remove children after first 6 (headers)
+  while(timetableGrid.children.length > 6) timetableGrid.removeChild(timetableGrid.lastChild);
+
+  PERIODS.forEach((p,pi)=>{
+    // Time cell
+    const timeCell = document.createElement("div");
+    timeCell.className = "header";
+    timeCell.innerHTML = `<div class="time-slot">${p.label}</div>`;
+    timetableGrid.appendChild(timeCell);
+
+    ["Mandag","Tirsdag","Onsdag","Torsdag","Fredag"].forEach(day=>{
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.day = day;
+      cell.dataset.period = pi;
+      const entry = (timetable[day] && timetable[day][pi]) ? timetable[day][pi] : {subject:"", teacher:"", room:"Rom 3"};
+      cell.innerHTML = `<div class="subject">${entry.subject || "<span class='small-muted'>—</span>"}</div>
+                        <div class="meta"><div class="teacher-name">${entry.teacher || ""}</div><div class="room">${entry.room || ""}</div></div>`;
+      cell.addEventListener("click", ()=>openCellModal(day,pi));
+      timetableGrid.appendChild(cell);
+    });
+  });
+}
+
+/* ---------- Modal logic for students ---------- */
+
+const studentModal = document.getElementById("studentModal");
+const modalName = document.getElementById("modalName");
+const modalAddress = document.getElementById("modalAddress");
+const modalParents = document.getElementById("modalParents");
+const modalDOB = document.getElementById("modalDOB");
+const modalVurdering = document.getElementById("modalVurdering");
+const notesList = document.getElementById("notesList");
+const noteType = document.getElementById("noteType");
+const noteComment = document.getElementById("noteComment");
+const addNoteBtn = document.getElementById("addNoteBtn");
+const editVurderingBtn = document.getElementById("editVurderingBtn");
+const closeStudentModal = document.getElementById("closeStudentModal");
+
+let currentStudentId = null;
+
+function openStudentModal(id){
+  currentStudentId = id;
+  const s = STUDENTS.find(x=>x.id===id);
+  if(!s) return;
+  modalName.textContent = s.name;
+  modalAddress.textContent = s.address;
+  modalParents.innerHTML = s.parents.map(p=>`<div>${p.name} — ${p.phone}</div>`).join("");
+  modalDOB.textContent = s.dob;
+  modalVurdering.textContent = s.vurdering || "(ingen vurdering)";
+  renderNotes(s);
+  studentModal.style.display = "flex";
+}
+
+function renderNotes(student){
+  notesList.innerHTML = "";
+  if(!student.notes || student.notes.length===0){
+    notesList.innerHTML = "<div class='small-muted'>Ingen anmerkninger</div>";
+    return;
+  }
+  student.notes.forEach((n, idx)=>{
+    const div = document.createElement("div");
+    div.style.padding="8px";
+    div.style.marginTop="6px";
+    div.style.background="#111";
+    div.style.borderRadius="6px";
+    div.innerHTML = `<div>${n.type === "Orden" ? "<span class='note-pill'>ORDEN</span>" : "<span class='note-pill bad'>OPPFØRSEL</span>"} <strong>${n.date}</strong></div>
+                     <div style="margin-top:6px">${n.comment}</div>
+                     <div style="text-align:right;margin-top:6px"><button class="btn" data-idx="${idx}" onclick="removeNote(${student.id}, ${idx})">Slett</button></div>`;
+    notesList.appendChild(div);
+  });
+}
+
+window.removeNote = function(studentId, idx){
+  const s = STUDENTS.find(x=>x.id===studentId);
+  if(!s) return;
+  s.notes.splice(idx,1);
+  saveState();
+  renderNotes(s);
+  renderStudents();
+}
+
+/* add note */
+addNoteBtn.addEventListener("click", ()=>{
+  if(!currentStudentId) return;
+  const s = STUDENTS.find(x=>x.id===currentStudentId);
+  if(!s) return;
+  const t = noteType.value;
+  const c = noteComment.value.trim();
+  if(!c){ alert("Skriv en kommentar først."); return; }
+  s.notes.push({type:t, comment:c, date:new Date().toISOString().slice(0,10)});
+  noteComment.value = "";
+  saveState();
+  renderNotes(s);
+  renderStudents();
+});
+
+/* vurdering */
+const vurderingModal = document.getElementById("vurderingModal");
+const vurderingText = document.getElementById("vurderingText");
+const saveVurderingBtn = document.getElementById("saveVurderingBtn");
+const closeVurderingBtn = document.getElementById("closeVurderingBtn");
+
+editVurderingBtn.addEventListener("click", ()=>{
+  if(!currentStudentId) return;
+  const s = STUDENTS.find(x=>x.id===currentStudentId);
+  vurderingText.value = s.vurdering || "";
+  vurderingModal.style.display = "flex";
+});
+
+saveVurderingBtn.addEventListener("click", ()=>{
+  if(!currentStudentId) return;
+  const s = STUDENTS.find(x=>x.id===currentStudentId);
+  s.vurdering = vurderingText.value.trim();
+  saveState();
+  modalVurdering.textContent = s.vurdering || "(ingen vurdering)";
+  vurderingModal.style.display = "none";
+});
+
+closeVurderingBtn.addEventListener("click", ()=>{ vurderingModal.style.display="none"; });
+closeStudentModal.addEventListener("click", ()=>{ studentModal.style.display="none"; currentStudentId=null; });
+
+/* ---------- Timetable cell modal ---------- */
+
+const cellModal = document.getElementById("cellModal");
+const cellSubject = document.getElementById("cellSubject");
+const cellTeacher = document.getElementById("cellTeacher");
+const cellRoom = document.getElementById("cellRoom");
+const saveCellBtn = document.getElementById("saveCellBtn");
+const closeCellBtn = document.getElementById("closeCellBtn");
+
+let editingCell = null;
+
+function openCellModal(day,period){
+  editingCell = {day, period};
+  const entry = timetable[day][period];
+  cellSubject.value = entry.subject || "";
+  // fill teachers
+  cellTeacher.innerHTML = "";
+  TEACHERS.forEach(t=>{
+    const opt = document.createElement("option");
+    opt.value = t.name;
+    opt.textContent = t.name;
+    if(t.name === entry.teacher) opt.selected = true;
+    cellTeacher.appendChild(opt);
+  });
+  cellRoom.value = entry.room || "Rom 3";
+  cellModal.style.display = "flex";
+}
+
+saveCellBtn.addEventListener("click", ()=>{
+  if(!editingCell) return;
+  const {day, period} = editingCell;
+  timetable[day][period] = {
+    subject: cellSubject.value.trim(),
+    teacher: cellTeacher.value,
+    room: cellRoom.value.trim() || "Rom 3"
+  };
+  saveState();
+  renderTimetable();
+  cellModal.style.display = "none";
+  editingCell = null;
+});
+
+closeCellBtn.addEventListener("click", ()=>{ cellModal.style.display="none"; editingCell=null; });
+
+/* ---------- Export / persist ---------- */
+
+function saveState(){
+  const st = {
+    students: STUDENTS.map(s=>({id:s.id, notes:s.notes, vurdering:s.vurdering})),
+    timetable: timetable
+  };
+  localStorage.setItem("klasseState_v1", JSON.stringify(st));
+}
+
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const s = {
+    students: STUDENTS,
+    timetable: timetable,
+    teachers: TEACHERS
+  };
+  const blob = new Blob([JSON.stringify(s, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "klasse_8C_export.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* close modals on background click */
+document.querySelectorAll('.modal').forEach(m=>{
+  m.addEventListener('click', function(e){
+    if(e.target === m) m.style.display = 'none';
+  });
+});
+
+/* ---------- init ---------- */
+renderStudents();
+renderTeachers();
+renderTimetable();
+saveState();
+
+</script>
+
+</body>
+</html>
